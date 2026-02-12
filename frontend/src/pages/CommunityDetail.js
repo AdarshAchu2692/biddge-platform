@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Users, ArrowLeft, User as UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = 'https://final-sfqz.onrender.com/api';
 const API = `${BACKEND_URL}/api`;
 
 export default function CommunityDetail() {
@@ -199,3 +199,4 @@ export default function CommunityDetail() {
     </div>
   );
 }
+
