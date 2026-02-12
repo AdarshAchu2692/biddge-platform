@@ -1,21 +1,22 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
+import { CommunityCard } from '../components/CommunityCard';
+import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { Search, PlusCircle } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-const API = BACKEND_URL;
+const API = 'https://final-sfqz.onrender.com/api';
 
-export default function CommunityDetail() {
-  const { id } = useParams();
-  const [community, setCommunity] = useState(null);
+export default function Communities() {
+  const [communities, setCommunities] = useState([]);
+  const [filteredCommunities, setFilteredCommunities] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
 
-  // Check if user is logged in - but NEVER redirect
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -29,118 +30,186 @@ export default function CommunityDetail() {
   }, []);
 
   useEffect(() => {
-    fetchCommunity();
-  }, [id]);
+    fetchCommunities();
+  }, []);
 
-  const fetchCommunity = async () => {
+  useEffect(() => {
+    if (searchQuery && communities.length > 0) {
+      const filtered = communities.filter(
+        (community) =>
+          community.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          community.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          community.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredCommunities(filtered);
+    } else {
+      setFilteredCommunities(communities);
+    }
+  }, [searchQuery, communities]);
+
+  const fetchCommunities = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/communities/${id}`);
-      setCommunity(response.data);
-    } catch (err) {
-      console.error('Error fetching community:', err);
-      setError('Community not found');
+      console.log('🔍 Fetching communities from:', `${API}/communities`);
+      
+      const response = await axios.get(`${API}/communities`);
+      console.log('✅ Communities received:', response.data);
+      
+      const communitiesData = response.data || [];
+      setCommunities(communitiesData);
+      setFilteredCommunities(communitiesData);
+      setError(null);
+      
+    } catch (error) {
+      console.error('❌ Error fetching communities:', error);
+      setError('Failed to load communities. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleJoin = async () => {
-    if (!user) {
-      window.location.href = `/login?from=/communities/${id}`;
-      return;
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a]">
+        <Navigation />
+        <div className="pt-32 pb-24 px-6 md:px-12 lg:px-24">
+          <div className="max-w-7xl mx-auto">
+            <div className="h-8 w-64 bg-zinc-800/50 rounded-lg animate-pulse mb-4"></div>
+            <div className="h-4 w-96 bg-zinc-800/50 rounded-lg animate-pulse mb-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-64 bg-zinc-900/50 rounded-3xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API}/communities/${id}/join`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      // Refresh community data to show updated member count
-      fetchCommunity();
-    } catch (err) {
-      console.error('Error joining community:', err);
-    }
-  };
-
-  if (loading) return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <Navigation />
-      <div className="pt-32 text-center text-white">Loading...</div>
-    </div>
-  );
-  
-  if (error) return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <Navigation />
-      <div className="pt-32 text-center text-white">{error}</div>
-    </div>
-  );
-  
-  if (!community) return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      <Navigation />
-      <div className="pt-32 text-center text-white">Community not found</div>
-    </div>
-  );
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a]">
+        <Navigation />
+        <div className="pt-32 pb-24 px-6 md:px-12 lg:px-24">
+          <div className="max-w-7xl mx-auto text-center">
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">❌</span>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-4">Something went wrong</h2>
+            <p className="text-zinc-400 mb-8">{error}</p>
+            <button
+              onClick={fetchCommunities}
+              className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       <Navigation />
       
       <div className="pt-32 pb-24 px-6 md:px-12 lg:px-24">
-        <div className="max-w-4xl mx-auto">
-          <Link to="/communities" className="inline-flex items-center text-zinc-400 hover:text-white mb-6">
-            <ArrowLeft size={16} className="mr-2" />
-            Back to Communities
-          </Link>
-
-          <div className="bg-zinc-900/50 rounded-3xl p-8 border border-white/10">
-            {community.image_url && (
-              <img 
-                src={community.image_url} 
-                alt={community.name}
-                className="w-full h-64 object-cover rounded-2xl mb-6"
-              />
-            )}
-
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-              {community.name}
-            </h1>
-            
-            <p className="text-zinc-400 mb-6">
-              {community.description}
-            </p>
-
-            <div className="flex items-center gap-4 mb-6">
-              <div>
-                <span className="text-zinc-500 text-sm">Members</span>
-                <p className="text-white text-xl font-semibold">{community.member_count || 0}</p>
-              </div>
-              <div className="ml-6">
-                <span className="text-zinc-500 text-sm">Created by</span>
-                <p className="text-white">{community.creator_name || 'Biddge Team'}</p>
-              </div>
+        <div className="max-w-7xl mx-auto">
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2 text-white">
+                All Communities
+              </h1>
+              <p className="text-lg text-zinc-400">
+                {communities.length > 0 
+                  ? `Discover ${communities.length} communities on Biddge`
+                  : 'Join a community or create your own'
+                }
+              </p>
             </div>
-
-            {user ? (
-              <Button 
-                onClick={handleJoin}
-                className="bg-primary text-white rounded-xl px-8 py-6 hover:bg-primary/90"
-              >
-                Join Community
-              </Button>
-            ) : (
-              <Link to={`/login?from=/communities/${id}`}>
-                <Button className="bg-primary text-white rounded-xl px-8 py-6 hover:bg-primary/90">
-                  Login to Join
-                </Button>
-              </Link>
-            )}
+            
+            {/* Create Community Button */}
+            <div className="mt-4 md:mt-0">
+              {user?.is_creator ? (
+                <Link to="/create-community">
+                  <Button className="bg-primary text-white rounded-xl px-6 py-6 hover:bg-primary/90 transition-all flex items-center gap-2">
+                    <PlusCircle size={20} />
+                    <span>Create Community</span>
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/login" state={{ from: '/create-community' }}>
+                  <Button className="bg-zinc-800 text-white rounded-xl px-6 py-6 hover:bg-zinc-700 transition-all flex items-center gap-2 border border-white/10">
+                    <PlusCircle size={20} />
+                    <span>Login to Create</span>
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
+
+          {/* Search Bar - Only show if there are communities */}
+          {communities.length > 0 && (
+            <div className="relative max-w-xl mb-8">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+              <Input
+                type="text"
+                placeholder="Search communities..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 bg-zinc-900/50 border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl h-14 text-white placeholder:text-zinc-500"
+              />
+            </div>
+          )}
+
+          {/* Communities Grid or Empty State */}
+          {communities.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="w-32 h-32 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-8">
+                <span className="text-6xl">🏝️</span>
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-4">
+                No Communities Yet
+              </h2>
+              <p className="text-xl text-zinc-400 mb-8 max-w-2xl mx-auto">
+                Be the first to create a community and start building your tribe!
+              </p>
+              {user?.is_creator ? (
+                <Link to="/create-community">
+                  <Button className="bg-primary text-white rounded-xl px-8 py-4 text-lg hover:bg-primary/90 transition-all">
+                    <PlusCircle className="mr-2" size={20} />
+                    Create Your Community
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/login" state={{ from: '/create-community' }}>
+                  <Button className="bg-primary text-white rounded-xl px-8 py-4 text-lg hover:bg-primary/90 transition-all">
+                    Login to Create
+                  </Button>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Results Count */}
+              <div className="mb-4 text-zinc-400">
+                Showing {filteredCommunities.length} of {communities.length} community{communities.length !== 1 ? 'ies' : 'y'}
+              </div>
+              
+              {/* Communities Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCommunities.map((community, index) => (
+                  <CommunityCard 
+                    key={community.id || community._id || `community-${index}`} 
+                    community={community} 
+                    index={index} 
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
